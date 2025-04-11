@@ -1,66 +1,57 @@
-const { chromium } = require('playwright');
-const fs = require('fs');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
+
+puppeteer.use(StealthPlugin());
+puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 async function scrapeMetaAds(competitor = "Slack") {
-  let browser;
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu'
+    ]
+  });
+
+  const page = await browser.newPage();
+
+  const searchURL = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=US&q=${encodeURIComponent(
+    competitor
+  )}&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped`;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-accelerated-2d-canvas',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--no-zygote'
-      ]
-    });
-
-    const context = await browser.newContext({
-      userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
-    });
-
-    const page = await context.newPage();
-
-    const searchURL = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=US&q=${encodeURIComponent(
-      competitor
-    )}&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped`;
-
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
+    await page.goto(searchURL, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    await page.goto(searchURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(8000); // give it time to render
 
-    await page.waitForTimeout(10000);
+    const adCards = await page.$$('[data-testid="ad-library-ad-card"]');
 
-    // Debugging: Screenshot + HTML
-    await page.screenshot({ path: 'page.png', fullPage: true });
-    fs.writeFileSync('debug.html', await page.content());
+    console.log(`[SCRAPER] Found ${adCards.length} ads`);
 
-    const adCount = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => cards.length);
-    console.log(`[SCRAPER] Found ${adCount} ad cards`);
-
-    const ads = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => {
-      return cards.slice(0, 10).map((card) => {
-        const headline = card.querySelector('div[dir="auto"]')?.innerText || "N/A";
-        const image = card.querySelector('img')?.src || null;
-        const ctaEl = [...card.querySelectorAll('a')].find((a) =>
-          a.innerText?.match(/Learn More|Shop Now|Sign Up|Apply Now|Get Offer/i)
+    const ads = [];
+    for (const card of adCards.slice(0, 10)) {
+      const headline = await card.$eval('div[dir="auto"]', el => el.innerText).catch(() => "N/A");
+      const image = await card.$eval('img', el => el.src).catch(() => null);
+      const cta = await card.$$eval('a', links => {
+        const found = links.find(a =>
+          /Learn More|Shop Now|Sign Up|Apply Now|Get Offer/i.test(a.innerText)
         );
-        const cta = ctaEl ? ctaEl.innerText : "N/A";
-        return { headline, cta, image };
-      });
-    });
+        return found ? found.innerText : "N/A";
+      }).catch(() => "N/A");
+
+      ads.push({ headline, cta, image });
+    }
 
     await browser.close();
     return ads;
-
   } catch (err) {
     console.error('[SCRAPER ERROR]', err.message || err);
-    if (browser) await browser.close();
-    throw new Error(`Failed to scrape ads: ${err.message}`);
+    await browser.close();
+    throw err;
   }
 }
 
