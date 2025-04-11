@@ -3,10 +3,23 @@ const { chromium } = require('playwright');
 async function scrapeMetaAds(competitor = "Slack") {
   const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-accelerated-2d-canvas',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--no-zygote'
+    ]
   });
 
-  const page = await browser.newPage();
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
+  });
+
+  const page = await context.newPage();
 
   const searchURL = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=US&q=${encodeURIComponent(
     competitor
@@ -14,9 +27,9 @@ async function scrapeMetaAds(competitor = "Slack") {
 
   try {
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
-    await page.goto(searchURL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(searchURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Optional wait for ad card
+    // Let content load, even after domcontentloaded
     await page.waitForTimeout(5000);
 
     const ads = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => {
