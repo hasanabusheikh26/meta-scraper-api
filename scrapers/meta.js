@@ -2,47 +2,43 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 
 async function scrapeMetaAds(competitor = "Slack") {
-  const browser = await chromium.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-accelerated-2d-canvas',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--no-zygote'
-    ]
-  });
-
-  const context = await browser.newContext({
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
-  });
-
-  const page = await context.newPage();
-
-  const searchURL = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=US&q=${encodeURIComponent(
-    competitor
-  )}&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped`;
+  let browser;
 
   try {
+    browser = await chromium.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-accelerated-2d-canvas',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--no-zygote'
+      ]
+    });
+
+    const context = await browser.newContext({
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
+    });
+
+    const page = await context.newPage();
+
+    const searchURL = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=US&q=${encodeURIComponent(
+      competitor
+    )}&sort_data[direction]=desc&sort_data[mode]=relevancy_monthly_grouped`;
+
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
+
     await page.goto(searchURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Let JS finish rendering
     await page.waitForTimeout(10000);
 
-    // Debug: Screenshot to verify visibility
+    // Debugging: Screenshot + HTML
     await page.screenshot({ path: 'page.png', fullPage: true });
-    console.log('[SCRAPER] Screenshot saved as page.png');
+    fs.writeFileSync('debug.html', await page.content());
 
-    // Debug: Log HTML to help trace issues
-    const html = await page.content();
-    fs.writeFileSync('debug.html', html);
-    console.log('[SCRAPER] Saved HTML as debug.html');
-
-    // Count and extract ads
     const adCount = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => cards.length);
     console.log(`[SCRAPER] Found ${adCount} ad cards`);
 
@@ -60,10 +56,11 @@ async function scrapeMetaAds(competitor = "Slack") {
 
     await browser.close();
     return ads;
+
   } catch (err) {
     console.error('[SCRAPER ERROR]', err.message || err);
-    await browser.close();
-    throw err;
+    if (browser) await browser.close();
+    throw new Error(`Failed to scrape ads: ${err.message}`);
   }
 }
 
