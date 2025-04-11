@@ -24,34 +24,30 @@ async function scrapeMetaAds(competitor = "Slack") {
 
   try {
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
-    await page.goto(searchURL, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto(searchURL, { waitUntil: 'networkidle0', timeout: 60000 });
 
-    await page.waitForTimeout(8000); // give it time to render
+    // ⏳ Let Facebook load dynamic content
+    await new Promise(resolve => setTimeout(resolve, 8000));
 
-    const adCards = await page.$$('[data-testid="ad-library-ad-card"]');
-
-    console.log(`[SCRAPER] Found ${adCards.length} ads`);
-
-    const ads = [];
-    for (const card of adCards.slice(0, 10)) {
-      const headline = await card.$eval('div[dir="auto"]', el => el.innerText).catch(() => "N/A");
-      const image = await card.$eval('img', el => el.src).catch(() => null);
-      const cta = await card.$$eval('a', links => {
-        const found = links.find(a =>
-          /Learn More|Shop Now|Sign Up|Apply Now|Get Offer/i.test(a.innerText)
+    const ads = await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('[data-testid="ad-library-ad-card"]'));
+      return cards.slice(0, 10).map(card => {
+        const headline = card.querySelector('div[dir="auto"]')?.innerText || "N/A";
+        const image = card.querySelector('img')?.src || null;
+        const ctaEl = [...card.querySelectorAll('a')].find(a =>
+          a.innerText?.match(/Learn More|Shop Now|Sign Up|Apply Now|Get Offer/i)
         );
-        return found ? found.innerText : "N/A";
-      }).catch(() => "N/A");
-
-      ads.push({ headline, cta, image });
-    }
+        const cta = ctaEl ? ctaEl.innerText : "N/A";
+        return { headline, cta, image };
+      });
+    });
 
     await browser.close();
     return ads;
   } catch (err) {
     console.error('[SCRAPER ERROR]', err.message || err);
     await browser.close();
-    throw err;
+    throw new Error(`Failed to scrape ads: ${err.message}`);
   }
 }
 
