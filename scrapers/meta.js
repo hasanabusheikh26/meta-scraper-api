@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
 
 async function scrapeMetaAds(competitor = "Slack") {
   const browser = await chromium.launch({
@@ -29,14 +30,22 @@ async function scrapeMetaAds(competitor = "Slack") {
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
     await page.goto(searchURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Let Facebook's JS load
+    // Let JS finish rendering
     await page.waitForTimeout(10000);
 
-    // Debug: count ads
+    // Debug: Screenshot to verify visibility
+    await page.screenshot({ path: 'page.png', fullPage: true });
+    console.log('[SCRAPER] Screenshot saved as page.png');
+
+    // Debug: Log HTML to help trace issues
+    const html = await page.content();
+    fs.writeFileSync('debug.html', html);
+    console.log('[SCRAPER] Saved HTML as debug.html');
+
+    // Count and extract ads
     const adCount = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => cards.length);
     console.log(`[SCRAPER] Found ${adCount} ad cards`);
 
-    // Scrape ad content
     const ads = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => {
       return cards.slice(0, 10).map((card) => {
         const headline = card.querySelector('div[dir="auto"]')?.innerText || "N/A";
