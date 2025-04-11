@@ -29,7 +29,6 @@ async function scrapeMetaAds(competitor = "Slack") {
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
     await page.goto(searchURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Let content load, even after domcontentloaded
     await page.waitForTimeout(5000);
 
     const ads = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => {
@@ -44,7 +43,6 @@ async function scrapeMetaAds(competitor = "Slack") {
       });
     });
 
-    console.log(`[SCRAPER] Found ${ads.length} ads`);
     await browser.close();
     return ads;
   } catch (err) {
