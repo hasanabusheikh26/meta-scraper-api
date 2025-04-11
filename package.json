@@ -2,6 +2,8 @@
   "name": "meta-scraper-api",
   "version": "1.0.0",
   "main": "index.js",
+
+  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
@@ -13,11 +15,7 @@
     "express": "^5.1.0",
     "playwright": "^1.51.1"
   },
-  "scripts": {
-  "start": "node server.js",
-  "postinstall": "npx playwright install --with-deps"
-},
-
+  
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hasanabusheikh26/meta-scraper-api.git"
