@@ -13,18 +13,20 @@ app.get('/', (req, res) => {
   res.send('Ad Scraper API is running 🎯');
 });
 
+// Optional GET route for testing
 app.get('/scrape', async (req, res) => {
   try {
     const competitor = req.query.competitor || 'Slack';
-    console.log(`Scraping ads for competitor: ${competitor}`);
+    console.log(`Scraping ads for competitor (GET): ${competitor}`);
     const ads = await scrapeMetaAds(competitor);
     res.json(ads);
   } catch (error) {
-    console.error('Error in /scrape endpoint:', error);
-    res.status(500).json({ error: 'Failed to scrape ads' });
+    console.error('Error in GET /scrape:', error.message || error);
+    res.status(500).json({ error: 'Failed to scrape ads', details: error.message || 'Unknown error' });
   }
 });
 
+// Main POST route used by Make.com or Lovable
 app.post('/scrape', async (req, res) => {
   const { competitor_name, platform } = req.body;
 
@@ -50,8 +52,11 @@ app.post('/scrape', async (req, res) => {
 
     return res.status(200).json(ads);
   } catch (err) {
-    console.error('[SERVER] Scraper failed:', err);
-    return res.status(500).json({ error: 'Scraping failed', details: err.message });
+    console.error('[SERVER] Scraper failed:', err.message || err);
+    return res.status(500).json({ 
+      error: 'Failed to scrape ads', 
+      details: err.message || 'Unknown error' 
+    });
   }
 });
 
