@@ -1,5 +1,5 @@
 const express = require('express');
-const scrapeMetaAds = require('./meta_scraper');
+const scrapeMetaAds = require('./scrapers/meta');
 // Future support:
 // const scrapeGoogleAds = require('./scrapers/google');
 // const scrapeLinkedInAds = require('./scrapers/linkedin');
