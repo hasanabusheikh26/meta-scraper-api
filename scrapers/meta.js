@@ -29,8 +29,14 @@ async function scrapeMetaAds(competitor = "Slack") {
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
     await page.goto(searchURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    await page.waitForTimeout(5000);
+    // Let Facebook's JS load
+    await page.waitForTimeout(10000);
 
+    // Debug: count ads
+    const adCount = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => cards.length);
+    console.log(`[SCRAPER] Found ${adCount} ad cards`);
+
+    // Scrape ad content
     const ads = await page.$$eval('[data-testid="ad-library-ad-card"]', (cards) => {
       return cards.slice(0, 10).map((card) => {
         const headline = card.querySelector('div[dir="auto"]')?.innerText || "N/A";
