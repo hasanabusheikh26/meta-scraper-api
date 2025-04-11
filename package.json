@@ -13,6 +13,11 @@
     "express": "^5.1.0",
     "playwright": "^1.51.1"
   },
+  "scripts": {
+  "start": "node server.js",
+  "postinstall": "npx playwright install --with-deps"
+},
+
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hasanabusheikh26/meta-scraper-api.git"
