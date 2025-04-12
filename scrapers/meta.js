@@ -1,14 +1,13 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
-const fs = require('fs');
 
 puppeteer.use(StealthPlugin());
 puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 async function scrapeMetaAds(competitor = "Slack") {
   const browser = await puppeteer.launch({
-    headless: "new", // switch to false to see it run
+    headless: "new",
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -27,17 +26,11 @@ async function scrapeMetaAds(competitor = "Slack") {
     console.log(`[SCRAPER] Navigating to: ${searchURL}`);
     await page.goto(searchURL, { waitUntil: 'networkidle0', timeout: 60000 });
 
-    console.log('[SCRAPER] Waiting for JS content...');
+    // Wait for dynamic content
     await new Promise(resolve => setTimeout(resolve, 10000));
 
-    // Take screenshot
-    await page.screenshot({ path: 'page.png', fullPage: true });
-    console.log('[SCRAPER] Screenshot saved as page.png');
-
-    // Save HTML content
-    const html = await page.content();
-    fs.writeFileSync('debug.html', html);
-    console.log('[SCRAPER] HTML saved as debug.html');
+    // Debug screenshot (optional)
+    // await page.screenshot({ path: 'page.png', fullPage: true });
 
     const ads = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('[data-testid="ad-library-ad-card"]'));
@@ -55,10 +48,9 @@ async function scrapeMetaAds(competitor = "Slack") {
     console.log(`[SCRAPER] Found ${ads.length} ads.`);
     await browser.close();
     return ads;
-
   } catch (err) {
     console.error('[SCRAPER ERROR]', err.message || err);
-    if (browser) await browser.close();
+    await browser.close();
     throw new Error(`Failed to scrape ads: ${err.message}`);
   }
 }
